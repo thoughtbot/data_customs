@@ -8,7 +8,6 @@ module DataCustoms
     def self.run(...) = new(...).run
 
     def up = raise NotImplementedError
-
     def verify! = raise NotImplementedError
 
     def run

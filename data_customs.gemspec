@@ -9,7 +9,11 @@ Gem::Specification.new do |spec|
   spec.email = ["matheusrichardt@gmail.com"]
 
   spec.summary = "A simple gem to help you perform data migrations in your Rails app."
-  spec.description = "A simple gem to help you perform data migrations in your Rails app. Define the work and a verification step steps, if any of them fail, your migration will be rolled back."
+  spec.description = <<~TEXT
+    A simple gem to help you perform data migrations in your Rails app.
+    Define the migration and a verification step; if any of them fail,
+    everything will be rolled back, so you're left with the original state.
+  TEXT
   spec.homepage = "https://github.com/thoughtbot/data_customs"
   spec.license = "MIT"
   spec.required_ruby_version = ">= 3.2.0"

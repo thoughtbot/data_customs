@@ -208,8 +208,8 @@ thoughtbot are trademarks of thoughtbot, inc.
 We love open source software! See [our other projects][community]. We are
 [available for hire][hire].
 
-[community]: https://thoughtbot.com/community?utm_source=github
-[hire]: https://thoughtbot.com/hire-us?utm_source=github
+[community]: https://thoughtbot.com/community?utm_source=github&utm_medium=readme&utm_campaign=data_customs
+[hire]: https://thoughtbot.com/hire-us?utm_source=github&utm_medium=readme&utm_campaign=data_customs
 
 <!-- END /templates/footer.md -->
 

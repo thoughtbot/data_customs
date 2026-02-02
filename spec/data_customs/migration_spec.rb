@@ -52,6 +52,21 @@ RSpec.describe DataCustoms::Migration do
       .and raise_error("Kaboom")
   end
 
+  it "rolls back db operations in initialize if up fails" do
+    migration = Class.new(DataCustoms::Migration) do
+      def initialize
+        TestUser.create!(name: "Created in initialize")
+      end
+
+      def up = raise "Kaboom"
+      def verify! = nil
+    end
+
+    expect { migration.run }
+      .to raise_error("Kaboom")
+      .and change { TestUser.count }.by(0)
+  end
+
   describe "helpers" do
     it "batches records" do
       3.times { |i| TestUser.create!(name: "User #{i}") }

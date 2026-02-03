@@ -5,20 +5,22 @@ module DataCustoms
     DEFAULT_BATCH_SIZE = 1000
     DEFAULT_THROTTLE = 0.01
 
-    def self.run(...) = new(...).run
+    def self.run(...)
+      ActiveRecord::Base.transaction do
+        new(...).run
+      end
+    rescue => e
+      warn "🛃 Data migration failed"
+      raise e
+    end
 
     def up = raise NotImplementedError
     def verify! = raise NotImplementedError
 
     def run
-      ActiveRecord::Base.transaction do
-        up
-        verify!
-        puts "🛃 Data migration ran successfully!"
-      rescue => e
-        warn "🛃 Data migration failed"
-        raise e
-      end
+      up
+      verify!
+      puts "🛃 Data migration ran successfully!"
     end
 
     private

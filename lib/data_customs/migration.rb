@@ -4,6 +4,9 @@ module DataCustoms
   class Migration
     DEFAULT_BATCH_SIZE = 1000
     DEFAULT_THROTTLE = 0.01
+    PROGRESS_BAR_WIDTH = 20
+    PROGRESS_PRINT_INTERVAL = 2 # seconds
+    ETA_MIN_ELAPSED = 2 # seconds before showing ETA
 
     def self.run(...)
       ActiveRecord::Base.transaction do
@@ -40,21 +43,40 @@ module DataCustoms
 
     def report_progress(percentage, eta: false)
       percentage = percentage.floor.clamp(0, 100)
-      return if percentage == @_last_reported_progress
 
-      @_last_reported_progress = percentage
-      filled = percentage / 5
-      empty = 20 - filled
-      progress = "🛃 Progress: #{"█" * filled}#{"░" * empty} #{percentage}%"
+      if percentage == 100
+        puts progress_bar(percentage)
+        return
+      end
 
-      if eta && percentage.between?(1, 99)
-        @_progress_started_at ||= Process.clock_gettime(Process::CLOCK_MONOTONIC)
-        elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - @_progress_started_at
-        remaining = elapsed / percentage * (100 - percentage)
-        progress += " (#{format_duration(remaining)} left)"
+      now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      @_progress_started_at ||= now
+      return if throttled?(now)
+
+      @_last_progress_printed_at = now
+      progress = progress_bar(percentage)
+
+      if eta && percentage > 0
+        elapsed = now - @_progress_started_at
+        if elapsed >= ETA_MIN_ELAPSED
+          remaining = elapsed / percentage * (100 - percentage)
+          progress += " (#{format_duration(remaining)} left)"
+        else
+          progress += " (estimating...)"
+        end
       end
 
       puts progress
+    end
+
+    def progress_bar(percentage)
+      filled = percentage / (100 / PROGRESS_BAR_WIDTH)
+      empty = PROGRESS_BAR_WIDTH - filled
+      "🛃 Progress: #{"█" * filled}#{"░" * empty} #{percentage}%"
+    end
+
+    def throttled?(now)
+      @_last_progress_printed_at && (now - @_last_progress_printed_at) < PROGRESS_PRINT_INTERVAL
     end
 
     def format_duration(seconds)

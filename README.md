@@ -146,6 +146,40 @@ class LongMigration < DataCustoms::Migration
 end
 ```
 
+#### Reporting progress
+
+For long-running migrations, you can use `report_progress` to display a progress
+bar:
+
+```ruby
+class BackfillUsernames < DataCustoms::Migration
+  def up
+    scope = User.where(username: nil)
+    total = scope.count
+    processed = 0
+
+    find_each(scope) do |user|
+      user.update!(username: "guest_#{user.id}")
+      processed += 1
+      report_progress(processed.to_f / total * 100)
+    end
+  end
+
+  def verify!
+    raise "Some users still have no usernames!" if User.exists?(username: nil)
+  end
+end
+```
+
+```
+🛃 Progress: ██████████░░░░░░░░░░ 50%
+🛃 Progress: ████████████████████ 100%
+🛃 Data migration ran successfully!
+```
+
+The method accepts a percentage (0–100) and deduplicates output, so it's safe to
+call on every iteration.
+
 ### Running a data migration in the command line
 
 These migrations don't run automatically. You need to invoke them manually.

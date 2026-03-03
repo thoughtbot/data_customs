@@ -37,5 +37,15 @@ module DataCustoms
         relation.each(&)
       end
     end
+
+    def report_progress(percentage)
+      percentage = percentage.floor.clamp(0, 100)
+      return if percentage == @_last_reported_progress
+
+      @_last_reported_progress = percentage
+      filled = percentage / 5
+      empty = 20 - filled
+      puts "🛃 Progress: #{"█" * filled}#{"░" * empty} #{percentage}%"
+    end
   end
 end

@@ -67,6 +67,76 @@ RSpec.describe DataCustoms::Migration do
       .and change { TestUser.count }.by(0)
   end
 
+  describe "#report_progress" do
+    def build_migration(&up_block)
+      Class.new(DataCustoms::Migration) do
+        define_method(:up, &up_block)
+        def verify! = nil
+      end
+    end
+
+    it "prints a progress bar" do
+      migration = build_migration { report_progress(50) }
+
+      expect { migration.run }.to output(
+        "🛃 Progress: ██████████░░░░░░░░░░ 50%\n"\
+        "🛃 Data migration ran successfully!\n"
+      ).to_stdout
+    end
+
+    it "floors the percentage" do
+      migration = build_migration { report_progress(99.9) }
+
+      expect { migration.run }.to output(
+        "🛃 Progress: ███████████████████░ 99%\n"\
+        "🛃 Data migration ran successfully!\n"
+      ).to_stdout
+    end
+
+    it "clamps to 0-100" do
+      migration = build_migration do
+        report_progress(-10)
+        report_progress(200)
+      end
+
+      expect { migration.run }.to output(
+        "🛃 Progress: ░░░░░░░░░░░░░░░░░░░░ 0%\n"\
+        "🛃 Progress: ████████████████████ 100%\n"\
+        "🛃 Data migration ran successfully!\n"
+      ).to_stdout
+    end
+
+    it "deduplicates consecutive calls with same percentage" do
+      migration = build_migration do
+        report_progress(50)
+        report_progress(50.4)
+        report_progress(50.9)
+        report_progress(51)
+      end
+
+      expect { migration.run }.to output(
+        "🛃 Progress: ██████████░░░░░░░░░░ 50%\n"\
+        "🛃 Progress: ██████████░░░░░░░░░░ 51%\n"\
+        "🛃 Data migration ran successfully!\n"
+      ).to_stdout
+    end
+
+    it "does not collide with task output" do
+      migration = build_migration do
+        report_progress(50)
+        puts "Processing..."
+        report_progress(100)
+      end
+
+      expect { migration.run }.to output(
+        "🛃 Progress: ██████████░░░░░░░░░░ 50%\n"\
+        "Processing...\n"\
+        "🛃 Progress: ████████████████████ 100%\n"\
+        "🛃 Data migration ran successfully!\n"
+      ).to_stdout
+    end
+  end
+
   describe "helpers" do
     it "batches records" do
       3.times { |i| TestUser.create!(name: "User #{i}") }

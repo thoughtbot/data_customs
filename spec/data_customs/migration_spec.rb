@@ -121,6 +121,30 @@ RSpec.describe DataCustoms::Migration do
       ).to_stdout
     end
 
+    it "shows ETA when eta: true" do
+      migration = build_migration do
+        report_progress(10, eta: true)
+        report_progress(50, eta: true)
+      end
+
+      expect { migration.run }.to output(
+        /Progress: .+ 10% \(\d+s left\)\n.*Progress: .+ 50% \(\d+s left\)\n/
+      ).to_stdout
+    end
+
+    it "does not show ETA at 0% or 100%" do
+      migration = build_migration do
+        report_progress(0, eta: true)
+        report_progress(100, eta: true)
+      end
+
+      expect { migration.run }.to output(
+        "🛃 Progress: ░░░░░░░░░░░░░░░░░░░░ 0%\n"\
+        "🛃 Progress: ████████████████████ 100%\n"\
+        "🛃 Data migration ran successfully!\n"
+      ).to_stdout
+    end
+
     it "does not collide with task output" do
       migration = build_migration do
         report_progress(50)

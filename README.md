@@ -180,6 +180,16 @@ end
 The method accepts a percentage (0–100) and deduplicates output, so it's safe to
 call on every iteration.
 
+Pass `eta: true` to show estimated time remaining:
+
+```ruby
+report_progress(processed.to_f / total * 100, eta: true)
+```
+
+```
+🛃 Progress: ██████████░░░░░░░░░░ 50% (2m 30s left)
+```
+
 ### Running a data migration in the command line
 
 These migrations don't run automatically. You need to invoke them manually.

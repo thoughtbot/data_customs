@@ -38,14 +38,34 @@ module DataCustoms
       end
     end
 
-    def report_progress(percentage)
+    def report_progress(percentage, eta: false)
       percentage = percentage.floor.clamp(0, 100)
       return if percentage == @_last_reported_progress
 
       @_last_reported_progress = percentage
       filled = percentage / 5
       empty = 20 - filled
-      puts "🛃 Progress: #{"█" * filled}#{"░" * empty} #{percentage}%"
+      progress = "🛃 Progress: #{"█" * filled}#{"░" * empty} #{percentage}%"
+
+      if eta && percentage.between?(1, 99)
+        @_progress_started_at ||= Process.clock_gettime(Process::CLOCK_MONOTONIC)
+        elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - @_progress_started_at
+        remaining = elapsed / percentage * (100 - percentage)
+        progress += " (#{format_duration(remaining)} left)"
+      end
+
+      puts progress
+    end
+
+    def format_duration(seconds)
+      seconds = seconds.ceil
+      if seconds < 60
+        "#{seconds}s"
+      elsif seconds < 3600
+        "#{seconds / 60}m #{seconds % 60}s"
+      else
+        "#{seconds / 3600}h #{(seconds % 3600) / 60}m"
+      end
     end
   end
 end

@@ -18,12 +18,15 @@ module DataCustoms
     def verify! = raise NotImplementedError
 
     def run
+      @_progress = ProgressReporter.new
       up
       verify!
       puts "🛃 Data migration ran successfully!"
     end
 
     private
+
+    def progress = @_progress
 
     def batch(scope, batch_size: DEFAULT_BATCH_SIZE, throttle_seconds: DEFAULT_THROTTLE)
       scope.in_batches(of: batch_size) do |relation|
@@ -36,11 +39,6 @@ module DataCustoms
       batch(scope, **) do |relation|
         relation.each(&)
       end
-    end
-
-    def report_progress(percentage, eta: false)
-      @_progress_reporter ||= ProgressReporter.new(eta: eta)
-      @_progress_reporter.report(percentage)
     end
   end
 end

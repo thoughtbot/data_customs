@@ -6,27 +6,28 @@ module DataCustoms
     PRINT_INTERVAL = 2 # seconds
     ETA_MIN_ELAPSED = 2 # seconds before showing ETA
 
-    def initialize(eta: false, output: $stdout)
-      @eta = eta
+    def initialize(output: $stdout)
       @output = output
+      @started_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
     end
 
-    def report(percentage)
+    def report(percentage, eta: false)
       percentage = percentage.floor.clamp(0, 100)
+      now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
       if percentage == 100
-        @output.puts bar(percentage)
+        elapsed = now - @started_at
+        line = bar(percentage)
+        line += " (#{format_duration(elapsed)} elapsed)" if elapsed >= 1
+        @output.puts line
         return
       end
-
-      now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-      @started_at ||= now
       return if throttled?(now)
 
       @last_printed_at = now
       line = bar(percentage)
 
-      if @eta && percentage > 0
+      if eta && percentage > 0
         elapsed = now - @started_at
         if elapsed >= ETA_MIN_ELAPSED
           remaining = elapsed / percentage * (100 - percentage)

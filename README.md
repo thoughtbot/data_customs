@@ -148,7 +148,7 @@ end
 
 #### Reporting progress
 
-For long-running migrations, you can use `report_progress` to display a progress
+For long-running migrations, you can use `progress.report` to display a progress
 bar:
 
 ```ruby
@@ -161,7 +161,7 @@ class BackfillUsernames < DataCustoms::Migration
     find_each(scope) do |user|
       user.update!(username: "guest_#{user.id}")
       processed += 1
-      report_progress(processed.to_f / total * 100)
+      progress.report(processed.to_f / total * 100)
     end
   end
 
@@ -173,17 +173,17 @@ end
 
 ```
 🛃 Progress: ██████████░░░░░░░░░░ 50%
-🛃 Progress: ████████████████████ 100%
+🛃 Progress: ████████████████████ 100% (5s elapsed)
 🛃 Data migration ran successfully!
 ```
 
-The method accepts a percentage (0–100) and deduplicates output, so it's safe to
-call on every iteration.
+It accepts a percentage (0–100) and throttles output, so it's safe to call on
+every iteration. At 100%, it shows the total elapsed time.
 
 Pass `eta: true` to show estimated time remaining:
 
 ```ruby
-report_progress(processed.to_f / total * 100, eta: true)
+progress.report(processed.to_f / total * 100, eta: true)
 ```
 
 ```

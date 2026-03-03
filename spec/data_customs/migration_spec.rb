@@ -67,7 +67,7 @@ RSpec.describe DataCustoms::Migration do
       .and change { TestUser.count }.by(0)
   end
 
-  describe "#report_progress" do
+  describe "#progress" do
     def build_migration(&up_block)
       Class.new(DataCustoms::Migration) do
         define_method(:up, &up_block)
@@ -76,70 +76,63 @@ RSpec.describe DataCustoms::Migration do
     end
 
     it "prints a progress bar" do
-      migration = build_migration { report_progress(50) }
+      migration = build_migration { progress.report(50) }
 
       expect { migration.run }.to output(
-        "🛃 Progress: ██████████░░░░░░░░░░ 50%\n"\
-        "🛃 Data migration ran successfully!\n"
+        /🛃 Progress: ██████████░░░░░░░░░░ 50%\n🛃 Data migration ran successfully!/
       ).to_stdout
     end
 
     it "floors the percentage" do
-      migration = build_migration { report_progress(99.9) }
+      migration = build_migration { progress.report(99.9) }
 
       expect { migration.run }.to output(
-        "🛃 Progress: ███████████████████░ 99%\n"\
-        "🛃 Data migration ran successfully!\n"
+        /🛃 Progress: ███████████████████░ 99%\n🛃 Data migration ran successfully!/
       ).to_stdout
     end
 
     it "clamps to 0-100" do
       migration = build_migration do
-        report_progress(-10)
-        report_progress(200)
+        progress.report(-10)
+        progress.report(200)
       end
 
       expect { migration.run }.to output(
-        "🛃 Progress: ░░░░░░░░░░░░░░░░░░░░ 0%\n"\
-        "🛃 Progress: ████████████████████ 100%\n"\
-        "🛃 Data migration ran successfully!\n"
+        /🛃 Progress: ░░░░░░░░░░░░░░░░░░░░ 0%\n🛃 Progress: ████████████████████ 100%\n🛃 Data migration ran successfully!/
       ).to_stdout
     end
 
     it "always prints at 100%" do
       migration = build_migration do
-        report_progress(50)
-        report_progress(100)
+        progress.report(50)
+        progress.report(100)
       end
 
       expect { migration.run }.to output(
-        "🛃 Progress: ██████████░░░░░░░░░░ 50%\n"\
-        "🛃 Progress: ████████████████████ 100%\n"\
-        "🛃 Data migration ran successfully!\n"
+        /🛃 Progress: ██████████░░░░░░░░░░ 50%\n🛃 Progress: ████████████████████ 100%\n🛃 Data migration ran successfully!/
       ).to_stdout
     end
 
     it "throttles output to every 2 seconds" do
       now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-      timestamps = [now, now + 0.5, now + 1.0, now + 2.1]
+      # first call is from ProgressReporter.new in run
+      timestamps = [now, now, now + 0.5, now + 1.0, now + 2.1]
       allow(Process).to receive(:clock_gettime).and_return(*timestamps)
 
       migration = build_migration do
-        report_progress(10)
-        report_progress(20)
-        report_progress(30)
-        report_progress(40)
+        progress.report(10)
+        progress.report(20)
+        progress.report(30)
+        progress.report(40)
       end
 
       expect { migration.run }.to output(
-        "🛃 Progress: ██░░░░░░░░░░░░░░░░░░ 10%\n"\
-        "🛃 Progress: ████████░░░░░░░░░░░░ 40%\n"\
-        "🛃 Data migration ran successfully!\n"
+        /🛃 Progress: ██░░░░░░░░░░░░░░░░░░ 10%\n🛃 Progress: ████████░░░░░░░░░░░░ 40%\n🛃 Data migration ran successfully!/
       ).to_stdout
     end
 
     it "shows 'estimating...' before enough time has elapsed" do
-      migration = build_migration { report_progress(50, eta: true) }
+      migration = build_migration { progress.report(50, eta: true) }
 
       expect { migration.run }.to output(
         /Progress: .+ 50% \(estimating\.\.\.\)\n/
@@ -148,11 +141,12 @@ RSpec.describe DataCustoms::Migration do
 
     it "shows ETA after enough time has elapsed" do
       now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-      allow(Process).to receive(:clock_gettime).and_return(now, now + 5.0)
+      # first call is from ProgressReporter.new, then report(25) at +0, report(50) at +5
+      allow(Process).to receive(:clock_gettime).and_return(now, now, now + 5.0)
 
       migration = build_migration do
-        report_progress(25, eta: true)
-        report_progress(50, eta: true)
+        progress.report(25, eta: true)
+        progress.report(50, eta: true)
       end
 
       expect { migration.run }.to output(
@@ -160,10 +154,25 @@ RSpec.describe DataCustoms::Migration do
       ).to_stdout
     end
 
+    it "shows elapsed time at 100%" do
+      now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      # first call is from ProgressReporter.new, then report(50) at +0, report(100) at +65
+      allow(Process).to receive(:clock_gettime).and_return(now, now, now + 65.0)
+
+      migration = build_migration do
+        progress.report(50)
+        progress.report(100)
+      end
+
+      expect { migration.run }.to output(
+        /🛃 Progress: ████████████████████ 100% \(1m 5s elapsed\)\n/
+      ).to_stdout
+    end
+
     it "does not show ETA at 0% or 100%" do
       migration = build_migration do
-        report_progress(0, eta: true)
-        report_progress(100, eta: true)
+        progress.report(0, eta: true)
+        progress.report(100, eta: true)
       end
 
       expect { migration.run }.to output(

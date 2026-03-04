@@ -12,7 +12,7 @@ GIT
 PATH
   remote: .
   specs:
-    data_customs (0.1.0)
+    data_customs (0.2.0)
       rails (>= 7.1)
 
 GEM

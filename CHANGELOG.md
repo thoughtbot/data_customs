@@ -19,6 +19,9 @@ class MyMigration < DataCustoms::Migration
     progress.report(100)
   end
 end
+
+MyMigration.run
+# 🛃 Progress: ██████████░░░░░░░░░░ 50% (2m 30s left)
 ```
 
 - Fix transaction to wrap `Migration.new` so database operations in `initialize` are rolled back on failure

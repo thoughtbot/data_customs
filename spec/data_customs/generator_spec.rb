@@ -15,5 +15,8 @@ RSpec.describe "Data migration generator" do
     expect(contents).to include("class FooBar < DataCustoms::Migration")
     expect(contents).to include("def up")
     expect(contents).to include("def verify!")
+
+    # teardown
+    FileUtils.rm_f(migration_path)
   end
 end

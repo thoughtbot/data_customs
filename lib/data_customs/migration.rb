@@ -18,13 +18,21 @@ module DataCustoms
     def verify! = raise NotImplementedError
 
     def run
-      @_progress = ProgressReporter.new
-      up
-      verify!
-      puts "🛃 Data migration ran successfully!"
+      with_progress_reporter do
+        up
+        verify!
+        puts "🛃 Data migration ran successfully!"
+      end
     end
 
     private
+
+    def with_progress_reporter(&block)
+      ProgressOutput.wrap do |output|
+        @_progress = ProgressReporter.new(output)
+        block.call
+      end
+    end
 
     def progress = @_progress
 

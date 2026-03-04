@@ -113,10 +113,10 @@ RSpec.describe DataCustoms::Migration do
       ).to_stdout
     end
 
-    it "throttles output to every 2 seconds" do
+    it "throttles output to every 1 second" do
       now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       # first call is from ProgressReporter.new in run
-      timestamps = [now, now, now + 0.5, now + 1.0, now + 2.1]
+      timestamps = [now, now, now + 0.3, now + 0.6, now + 1.1]
       allow(Process).to receive(:clock_gettime).and_return(*timestamps)
 
       migration = build_migration do
@@ -141,8 +141,8 @@ RSpec.describe DataCustoms::Migration do
 
     it "shows ETA after enough time has elapsed" do
       now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-      # first call is from ProgressReporter.new, then report(25) at +0, report(50) at +5
-      allow(Process).to receive(:clock_gettime).and_return(now, now, now + 5.0)
+      # ProgressReporter.new, report(25) eta + throttle, report(50) eta + throttle
+      allow(Process).to receive(:clock_gettime).and_return(now, now, now, now + 5.0, now + 5.0)
 
       migration = build_migration do
         progress.report(25, eta: true)

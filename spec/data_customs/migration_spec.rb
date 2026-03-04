@@ -132,7 +132,11 @@ RSpec.describe DataCustoms::Migration do
     end
 
     it "shows 'estimating...' before enough time has elapsed" do
-      migration = build_migration { progress.report(50, eta: true) }
+      migration = Class.new(DataCustoms::Migration) do
+        progress eta: true
+        define_method(:up) { progress.report(50) }
+        def verify! = nil
+      end
 
       expect { migration.run }.to output(
         /Progress: .+ 50% \(estimating\.\.\.\)\n/
@@ -144,9 +148,13 @@ RSpec.describe DataCustoms::Migration do
       # ProgressReporter.new, report(25) eta + throttle, report(50) eta + throttle
       allow(Process).to receive(:clock_gettime).and_return(now, now, now, now + 5.0, now + 5.0)
 
-      migration = build_migration do
-        progress.report(25, eta: true)
-        progress.report(50, eta: true)
+      migration = Class.new(DataCustoms::Migration) do
+        progress eta: true
+        define_method(:up) do
+          progress.report(25)
+          progress.report(50)
+        end
+        def verify! = nil
       end
 
       expect { migration.run }.to output(
@@ -170,15 +178,39 @@ RSpec.describe DataCustoms::Migration do
     end
 
     it "does not show ETA at 0% or 100%" do
-      migration = build_migration do
-        progress.report(0, eta: true)
-        progress.report(100, eta: true)
+      migration = Class.new(DataCustoms::Migration) do
+        progress eta: true
+        define_method(:up) do
+          progress.report(0)
+          progress.report(100)
+        end
+        def verify! = nil
       end
 
       expect { migration.run }.to output(
         "🛃 Progress: ░░░░░░░░░░░░░░░░░░░░ 0%\n"\
         "🛃 Progress: ████████████████████ 100%\n"\
         "🛃 Data migration ran successfully!\n"
+      ).to_stdout
+    end
+  end
+
+  describe ".progress" do
+    it "configures ETA at the class level" do
+      now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      allow(Process).to receive(:clock_gettime).and_return(now, now, now, now + 5.0, now + 5.0)
+
+      migration = Class.new(DataCustoms::Migration) do
+        progress eta: true
+        define_method(:up) do
+          progress.report(25)
+          progress.report(50)
+        end
+        def verify! = nil
+      end
+
+      expect { migration.run }.to output(
+        /Progress: .+ 50% \(\d+s left\)\n/
       ).to_stdout
     end
   end

@@ -180,10 +180,26 @@ end
 It accepts a percentage (0–100) and throttles output, so it's safe to call on
 every iteration. At 100%, it shows the total elapsed time.
 
-Pass `eta: true` to show estimated time remaining:
+Use `progress eta: true` at the class level to show estimated time remaining:
 
 ```ruby
-progress.report(processed.to_f / total * 100, eta: true)
+class BackfillUsernames < DataCustoms::Migration
+  progress eta: true
+
+  def up
+    scope = User.where(username: nil)
+    total = scope.count
+    processed = 0
+
+    find_each(scope) do |user|
+      user.update!(username: "guest_#{user.id}")
+      processed += 1
+      progress.report(processed.to_f / total * 100)
+    end
+  end
+
+  # ...
+end
 ```
 
 ```

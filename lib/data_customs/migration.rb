@@ -5,6 +5,14 @@ module DataCustoms
     DEFAULT_BATCH_SIZE = 1000
     DEFAULT_THROTTLE = 0.01
 
+    def self.progress(**options)
+      @progress_options = options
+    end
+
+    def self.progress_options
+      @progress_options || {}
+    end
+
     def self.run(...)
       ActiveRecord::Base.transaction do
         new(...).run
@@ -29,7 +37,7 @@ module DataCustoms
 
     def with_progress_reporter(&block)
       ProgressOutput.wrap do |output|
-        @_progress = ProgressReporter.new(output)
+        @_progress = ProgressReporter.new(output, **self.class.progress_options)
         block.call
       end
     end

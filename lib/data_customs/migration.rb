@@ -13,13 +13,19 @@ module DataCustoms
       @progress_options || {}
     end
 
-    def self.run(...)
-      ActiveRecord::Base.transaction do
-        new(...).run
+    def self.run(*args, **kwargs)
+      with_transaction(*args, **kwargs) do |migration|
+        migration.run
       end
     rescue => e
       warn "🛃 Data migration failed"
       raise e
+    end
+
+    def self.with_transaction(*args, **kwargs)
+      ActiveRecord::Base.transaction do
+        yield new(*args, **kwargs)
+      end
     end
 
     def up = raise NotImplementedError

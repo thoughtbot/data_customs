@@ -188,8 +188,8 @@ RSpec.describe DataCustoms::Migration do
       end
 
       expect { migration.run }.to output(
-        "🛃 Progress: ░░░░░░░░░░░░░░░░░░░░ 0%\n"\
-        "🛃 Progress: ████████████████████ 100%\n"\
+        "🛃 Progress: ░░░░░░░░░░░░░░░░░░░░ 0%\n" \
+        "🛃 Progress: ████████████████████ 100%\n" \
         "🛃 Data migration ran successfully!\n"
       ).to_stdout
     end

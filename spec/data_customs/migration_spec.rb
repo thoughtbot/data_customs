@@ -144,7 +144,7 @@ RSpec.describe DataCustoms::Migration do
     end
 
     it "shows ETA after enough time has elapsed" do
-      now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      now = 100.0
       # ProgressReporter.new, report(25) eta + throttle, report(50) eta + throttle
       allow(Process).to receive(:clock_gettime).and_return(now, now, now, now + 5.0, now + 5.0)
 
@@ -163,7 +163,8 @@ RSpec.describe DataCustoms::Migration do
     end
 
     it "shows elapsed time at 100%" do
-      now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      # Use a fixed base to avoid float-precision errors with large clock values
+      now = 100.0
       # first call is from ProgressReporter.new, then report(50) at +0, report(100) at +65
       allow(Process).to receive(:clock_gettime).and_return(now, now, now + 65.0)
 

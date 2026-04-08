@@ -215,6 +215,114 @@ RSpec.describe DataCustoms::Migration do
     end
   end
 
+  describe "non-atomic migration" do
+    it "does not wrap in a transaction (changes persist on failure)" do
+      migration = Class.new(DataCustoms::Migration) do
+        atomic false
+
+        def up
+          TestUser.create!(name: "persisted")
+          raise "Boom"
+        end
+
+        def verify! = nil
+        def down = nil
+      end
+
+      expect { migration.run }.to raise_error("Boom")
+      expect(TestUser.exists?(name: "persisted")).to be true
+    end
+
+    it "calls down when up fails" do
+      migration = Class.new(DataCustoms::Migration) do
+        atomic false
+
+        def up
+          TestUser.create!(name: "to_revert")
+          raise "Boom"
+        end
+
+        def verify! = nil
+
+        def down
+          TestUser.where(name: "to_revert").delete_all
+        end
+      end
+
+      expect { migration.run }.to raise_error("Boom")
+      expect(TestUser.exists?(name: "to_revert")).to be false
+    end
+
+    it "calls down when verify! fails" do
+      migration = Class.new(DataCustoms::Migration) do
+        atomic false
+
+        def up
+          TestUser.create!(name: "to_revert")
+        end
+
+        def verify!
+          raise "Verification failed"
+        end
+
+        def down
+          TestUser.where(name: "to_revert").delete_all
+        end
+      end
+
+      expect { migration.run }.to raise_error("Verification failed")
+      expect(TestUser.exists?(name: "to_revert")).to be false
+    end
+
+    it "warns and re-raises the original error if down also fails" do
+      migration = Class.new(DataCustoms::Migration) do
+        atomic false
+
+        def up = raise "Original error"
+        def verify! = nil
+        def down = raise "Down error"
+      end
+
+      expect { migration.run }
+        .to raise_error("Original error")
+        .and output(/down failed: Down error/).to_stderr
+    end
+
+    it "succeeds without calling down" do
+      migration = Class.new(DataCustoms::Migration) do
+        atomic false
+
+        def up
+          TestUser.create!(name: "kept")
+        end
+
+        def verify!
+          raise "Missing!" unless TestUser.exists?(name: "kept")
+        end
+
+        def down
+          raise "down should not be called"
+        end
+      end
+
+      expect { migration.run }.to(
+        change { TestUser.count }.by(1)
+          .and(output("🛃 Data migration ran successfully!\n").to_stdout)
+      )
+    end
+
+    it "raises ArgumentError if down is not defined" do
+      migration = Class.new(DataCustoms::Migration) do
+        atomic false
+
+        def up = nil
+        def verify! = nil
+      end
+
+      expect { migration.run }.to raise_error(ArgumentError, /down method is required/)
+    end
+  end
+
   describe "helpers" do
     it "batches records" do
       3.times { |i| TestUser.create!(name: "User #{i}") }
@@ -232,20 +340,44 @@ RSpec.describe DataCustoms::Migration do
           raise "Wrong batches #{@batch_sizes}" if @batch_sizes != [2, 1]
         end
       end
+      expect_any_instance_of(Kernel).not_to receive(:sleep)
+
+      expect { migration.run }.to output("🛃 Data migration ran successfully!\n").to_stdout
+    end
+
+    it "throttles between batches in non-atomic mode" do
+      3.times { |i| TestUser.create!(name: "User #{i}") }
+
+      migration = Class.new(DataCustoms::Migration) do
+        atomic false
+
+        def initialize = @batch_sizes = []
+
+        def up
+          batch(TestUser.all, batch_size: 2) do |relation|
+            @batch_sizes << relation.size
+          end
+        end
+
+        def verify!
+          raise "Wrong batches #{@batch_sizes}" if @batch_sizes != [2, 1]
+        end
+
+        def down = nil
+      end
       expect_any_instance_of(Kernel).to receive(:sleep).exactly(2).times
 
       expect { migration.run }.to output("🛃 Data migration ran successfully!\n").to_stdout
     end
 
     it "finds each record" do
-      allow_any_instance_of(Kernel).to receive(:sleep)
       3.times { |i| TestUser.create!(name: "User #{i}") }
 
       migration = Class.new(DataCustoms::Migration) do
         def initialize = @users = []
 
         def up
-          find_each(TestUser.all, throttle_seconds: -1) do |user|
+          find_each(TestUser.all) do |user|
             @users << user.name
           end
         end

@@ -5,6 +5,14 @@ module DataCustoms
     DEFAULT_BATCH_SIZE = 1000
     DEFAULT_THROTTLE = 0.01
 
+    def self.atomic(value)
+      @atomic = value
+    end
+
+    def self.atomic?
+      @atomic != false
+    end
+
     def self.progress(**options)
       @progress_options = options
     end
@@ -14,6 +22,8 @@ module DataCustoms
     end
 
     def self.run(*args, **kwargs)
+      ensure_rollback_strategy!
+
       with_transaction(*args, **kwargs) do |migration|
         migration.run
       end
@@ -22,9 +32,29 @@ module DataCustoms
       raise e
     end
 
+    def self.ensure_rollback_strategy!
+      return if atomic? || method_defined?(:down)
+
+      raise ArgumentError, "down method is required when running a non-atomic migration"
+    end
+
     def self.with_transaction(*args, **kwargs)
-      ActiveRecord::Base.transaction do
-        yield new(*args, **kwargs)
+      if atomic?
+        ActiveRecord::Base.transaction do
+          yield new(*args, **kwargs)
+        end
+      else
+        migration = new(*args, **kwargs)
+        begin
+          yield migration
+        rescue => e
+          begin
+            migration.down
+          rescue => down_error
+            warn "🛃 down failed: #{down_error.message}"
+          end
+          raise e
+        end
       end
     end
 
@@ -50,7 +80,11 @@ module DataCustoms
 
     def progress = @_progress
 
-    def batch(scope, batch_size: DEFAULT_BATCH_SIZE, throttle_seconds: DEFAULT_THROTTLE)
+    def default_throttle
+      self.class.atomic? ? 0 : DEFAULT_THROTTLE
+    end
+
+    def batch(scope, batch_size: DEFAULT_BATCH_SIZE, throttle_seconds: default_throttle)
       scope.in_batches(of: batch_size) do |relation|
         yield relation
         sleep(throttle_seconds) if throttle_seconds.positive?

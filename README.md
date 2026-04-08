@@ -101,48 +101,49 @@ AddDefaultUsername.run("anonymous")
 
 #### Dealing with large datasets
 
-The migration code runs inside a transaction, so be careful when dealing with
-large datasets, as [it will block the database][blocking] for the duration of
-the transaction.
+By default, the migration code runs inside a transaction. For large datasets,
+this [blocks the database][blocking] for the duration of the migration. To
+avoid this, use `atomic false` to opt out of the transaction.
 
-Data Customs provides a few helpers to make working in batches easier and
-automatically throttles the migration to avoid overwhelming the database.
+Non-atomic migrations require a `down` method that reverts the changes made by
+`up`. Since there is no transaction to roll back, `down` is your rollback
+strategy: if `up` or `verify!` fails, `down` is called automatically. It should
+be idempotent, as the gem does not track which records were changed.
 
 ```ruby
-class AddDefaultUsername < DataCustoms::Migration
+class BackfillDefaultUsername < DataCustoms::Migration
+  atomic false
+
   def up
-    batch(User.where.missing(:username)) do |relation|
-      relation.update_all(username: "guest")
+    batch(User.where(username: nil)) do |rel|
+      rel.update_all(username: "guest")
     end
+  end
+
+  def verify!
+    raise "Failed" if User.exists?(username: nil)
+  end
+
+  def down
+    User.where(username: "guest").update_all(username: nil)
   end
 end
 ```
 
-Or, if you need access to each individual record:
+The `batch` and `find_each` helpers process records using
+[`in_batches`][in_batches], with a short pause between each batch so other
+queries can run in between. Use `find_each` when you need access to individual
+records instead of relations.
+
+Both methods accept `batch_size` and `throttle_seconds` options:
 
 ```ruby
-class AddDefaultUsername < DataCustoms::Migration
-  def up
-    find_each(User.where.missing(:username)) do |record|
-      # do something with record
-    end
-  end
+batch(records, batch_size: 500, throttle_seconds: 0.1) do |relation|
+  # ...
 end
-```
 
-For both methods, you can configure the batch size and the pause between batches:
-
-```ruby
-class LongMigration < DataCustoms::Migration
-  def up
-    batch(records, batch_size: 500, throttle_seconds: 0.1) do |relation|
-      # ...
-    end
-
-    find_each(records, batch_size: 500, throttle_seconds: 0.1) do |record|
-      # ...
-    end
-  end
+find_each(records, batch_size: 500, throttle_seconds: 0.1) do |record|
+  # ...
 end
 ```
 
@@ -274,3 +275,4 @@ We love open source software! See [our other projects][community]. We are
 <!-- END /templates/footer.md -->
 
 [blocking]: https://github.com/ankane/strong_migrations?tab=readme-ov-file#backfilling-data
+[in_batches]: https://api.rubyonrails.org/classes/ActiveRecord/Batches.html#method-i-in_batches

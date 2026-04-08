@@ -1,5 +1,32 @@
 ## [Unreleased]
 
+- Add `atomic false` mode for non-atomic migrations that don't hold a transaction open
+
+```ruby
+class BackfillDefaultUsername < DataCustoms::Migration
+  atomic false
+
+  def up
+    batch(User.where(username: nil)) do |rel|
+      rel.update_all(username: "guest")
+    end
+  end
+
+  def verify!
+    raise "Failed" if User.exists?(username: nil)
+  end
+
+  def down
+    User.where(username: "guest").update_all(username: nil)
+  end
+end
+```
+
+  - Requires a `down` method (raises `ArgumentError` if missing)
+  - Automatically calls `down` if `up` or `verify!` fails
+  - If `down` itself fails, warns and re-raises the original error
+- Disable throttling by default in atomic mode (`batch`/`find_each` only throttle in non-atomic mode)
+
 ## [0.2.0] - 2026-03-04
 
 - Add `progress.report` for tracking migration progress with a visual bar that updates in place on TTY terminals

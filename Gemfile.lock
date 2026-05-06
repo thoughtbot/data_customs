@@ -89,6 +89,10 @@ GEM
       minitest (>= 5.1)
       securerandom (>= 0.3)
       tzinfo (~> 2.0, >= 2.0.5)
+    appraisal (2.5.0)
+      bundler
+      rake
+      thor (>= 0.14.0)
     ast (2.4.3)
     base64 (0.3.0)
     benchmark (0.4.1)
@@ -270,6 +274,7 @@ PLATFORMS
   x86_64-linux
 
 DEPENDENCIES
+  appraisal
   data_customs!
   irb
   rake (~> 13.0)

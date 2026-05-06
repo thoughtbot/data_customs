@@ -1,3 +1,4 @@
+require "active_support/core_ext/module/delegation"
 require "rails/railtie"
 
 module DataCustoms
